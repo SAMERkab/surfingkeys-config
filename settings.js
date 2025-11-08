@@ -1,5 +1,5 @@
-
 console.log("surfingkeys api:", api);
+console.log("surfingkeys settings:", settings);
 var nextLinkWords = ["next", "newer", "weiter", "nächste.?",];
 var nextLinkSymbols = [">", "›", "→", "»", "≫",];
 var prevLinkWords = ["prev(ious)?", "back", "older", "zurück", "vorherige.?"];
@@ -76,6 +76,15 @@ const leader = ',';
 
 api.map("``", '<Ctrl-6>');
 api.map("g<Tab>", '<Ctrl-6>');
+api.map("<Space>", "p");
+
+// api.mapkey("<Space>", 'Enter PassThrough mode for one keystroke', function() {
+//     api.Normal.passThrough();
+//     document.addEventListener('keydown', function () {
+//         //document.dispatchEvent(new KeyboardEvent('keydown', {'key': 'Escape'}));
+//         api.Normal.feedkeys("<Esc>");
+//     }, { once: true });
+// });
 
 api.mapkey('oa', 'Open URL in the Internet Archive', function() {
     api.tabOpenLink(`https://web.archive.org/web/*/${window.location.href}`);
@@ -98,23 +107,41 @@ api.map("gT", 'E'); api.unmap('E');
 //})
 
 remap('m', 'Add current URL to vim-like mark', async function(originalBehaviour, mark) {
-    let url, specificUrl;
-    url = specificUrl = window.location.href;
+    let url = new URL(window.location.href);
+    let specificUrl = new URL(window.location.href);
+    let markObject = {};
     
     if (pageHasVideo()) {
         let videoElement = document.querySelector("video");
-        specificUrl = addVideoTimeToUrl(url, Math.floor(videoElement.currentTime));
+        specificUrl.searchParams.set("t", Math.floor(videoElement.currentTime));
     }
     
-    let markObject = {};
-    markObject[mark] = {
-        url, specificUrl,
-        scrollLeft: document.scrollingElement.scrollLeft,
-        scrollTop: document.scrollingElement.scrollTop
-    };
-    
-    api.RUNTIME('addVIMark', {mark: markObject});
-    api.Front.showBanner("Mark '{0}' added for: {1}.".format(mark, specificUrl));
+    if (mark === mark.toUpperCase() && mark !== mark.toLowerCase()) { // if mark is an uppercase letter
+        api.Hints.create(/(^[\n\r\s]*\S{3,}|\b\S{4,})/g, function(element) {
+            specificUrl.hash = url.hash = 
+                `#:~:text=${element[0].textContent.slice(0, element[1])}-,${element[2]}`;
+            
+            markObject[mark] = {
+                url: url.href,
+                specificUrl: specificUrl.href,
+                scrollLeft: document.scrollingElement.scrollLeft,
+                scrollTop: document.scrollingElement.scrollTop
+            };
+            
+            api.RUNTIME('addVIMark', {mark: markObject});
+            api.Front.showBanner("Mark '{0}' added for: {1}.".format(mark, specificUrl));
+            });
+    } else {
+        markObject[mark] = {
+            url: url.href,
+            specificUrl: specificUrl.href,
+            scrollLeft: document.scrollingElement.scrollLeft,
+            scrollTop: document.scrollingElement.scrollTop
+        };
+        
+        api.RUNTIME('addVIMark', {mark: markObject});
+        api.Front.showBanner("Mark '{0}' added for: {1}.".format(mark, specificUrl));
+    }
 });
 
 remap("'", 'Jump to vim-like mark', function(originalBehaviour, mark) {
@@ -181,15 +208,15 @@ function remap(existingKey, description, newBehaviour) {
 }
 
 // TODO: support more video viewing websites
-async function pageHasVideo() {
+function pageHasVideo() {
     return window.location.href.includes('watch');
 }
 
-function addVideoTimeToUrl(url, time) {
-  const parsedUrl = new URL(url);
-  parsedUrl.searchParams.set("t", time);
-  return parsedUrl.href;
-}
+//function addVideoTimeToUrl(url, time) {
+//  const parsedUrl = new URL(url);
+//  parsedUrl.searchParams.set("t", time);
+//  return parsedUrl.href;
+//}
     // TODO: delete this:
     //const MAX_TIME_TO_FIND_VIDEO = 7000;
     //const FIND_VIDEO_INTERVAL = 300;
